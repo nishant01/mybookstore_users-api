@@ -1,6 +1,8 @@
 package users
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
 
 type PublicUser struct {
 	Id          int64  `json:"id"`
@@ -22,7 +24,6 @@ func (users Users) Marshall(isPublic bool) []interface{} {
 	for index, user := range users {
 		result[index] = user.Marshall(isPublic)
 	}
-
 	return result
 }
 
@@ -34,6 +35,7 @@ func (user *User) Marshall(isPublic bool) interface{} {
 			Status:      user.Status,
 		}
 	}
+
 	userJson, _ := json.Marshal(user)
 	var privateUser PrivateUser
 	json.Unmarshal(userJson, &privateUser)

@@ -2,15 +2,13 @@ package users
 
 import (
 	"strings"
-
-	"github.com/nishant01/mybookstore_users-api/utils/errors"
+	"github.com/nishant01/mybookstore_utils-go/rest_errors"
 )
 
 const (
 	StatusActive = "active"
 )
 
-// User decleared
 type User struct {
 	Id          int64  `json:"id"`
 	FirstName   string `json:"first_name"`
@@ -23,17 +21,18 @@ type User struct {
 
 type Users []User
 
-func (user *User) Validate() *errors.RestErr {
-	user.FirstName = strings.TrimSpace(strings.ToLower(user.FirstName))
-	user.LastName = strings.TrimSpace(strings.ToLower(user.LastName))
+func (user *User) Validate() rest_errors.RestErr {
+	user.FirstName = strings.TrimSpace(user.FirstName)
+	user.LastName = strings.TrimSpace(user.LastName)
+
 	user.Email = strings.TrimSpace(strings.ToLower(user.Email))
-	user.Password = strings.TrimSpace(user.Password)
 	if user.Email == "" {
-		return errors.NewBadRequestError("Invalid email address.")
+		return rest_errors.NewBadRequestError("invalid email address")
 	}
 
+	user.Password = strings.TrimSpace(user.Password)
 	if user.Password == "" {
-		return errors.NewBadRequestError("Invalid password address.")
+		return rest_errors.NewBadRequestError("invalid password")
 	}
 	return nil
 }

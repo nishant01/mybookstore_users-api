@@ -1,114 +1,125 @@
 package users
 
 import (
-	"net/http"
-	"strconv"
-
 	"github.com/gin-gonic/gin"
-	"github.com/nishant01/mybookstore_users-api/doamin/users"
+	"net/http"
+	"github.com/nishant01/mybookstore_users-api/domain/users"
 	"github.com/nishant01/mybookstore_users-api/services"
-	"github.com/nishant01/mybookstore_users-api/utils/errors"
+	"strconv"
+	"github.com/nishant01/mybookstore_oauth-go/oauth"
+	"github.com/nishant01/mybookstore_utils-go/rest_errors"
 )
 
-// Get User Id
-func getUserId(userIdParam string) (int64, *errors.RestErr) {
+func getUserId(userIdParam string) (int64, rest_errors.RestErr) {
 	userId, userErr := strconv.ParseInt(userIdParam, 10, 64)
 	if userErr != nil {
-		return 0, errors.NewBadRequestError("User id should be a number")
+		return 0, rest_errors.NewBadRequestError("user id should be a number")
 	}
 	return userId, nil
 }
 
-// Create User
 func Create(c *gin.Context) {
 	var user users.User
 	if err := c.ShouldBindJSON(&user); err != nil {
-		restErr := errors.NewBadRequestError("Invalid JSON body")
-		c.JSON(restErr.Status, restErr)
+		restErr := rest_errors.NewBadRequestError("invalid json body")
+		c.JSON(restErr.Status(), restErr)
 		return
 	}
 
-	result, saveErr := services.UserService.CreateUser(user)
+	result, saveErr := services.UsersService.CreateUser(user)
 	if saveErr != nil {
-		c.JSON(saveErr.Status, saveErr)
+		c.JSON(saveErr.Status(), saveErr)
 		return
 	}
-	c.JSON(http.StatusCreated, result.Marshall(c.GetHeader("x-public") == "true"))
+	c.JSON(http.StatusCreated, result.Marshall(c.GetHeader("X-Public") == "true"))
 }
 
-// Update User
+func Get(c *gin.Context) {
+	if err := oauth.AuthenticateRequest(c.Request); err != nil {
+		c.JSON(err.Status(), err)
+		return
+	}
+
+	userId, idErr := getUserId(c.Param("user_id"))
+	if idErr != nil {
+		c.JSON(idErr.Status(), idErr)
+		return
+	}
+	user, getErr := services.UsersService.GetUser(userId)
+	if getErr != nil {
+		c.JSON(getErr.Status(), getErr)
+		return
+	}
+
+	if oauth.GetCallerId(c.Request) == user.Id {
+		c.JSON(http.StatusOK, user.Marshall(false))
+		return
+	}
+	c.JSON(http.StatusOK, user.Marshall(oauth.IsPublic(c.Request)))
+}
+
 func Update(c *gin.Context) {
 	userId, idErr := getUserId(c.Param("user_id"))
 	if idErr != nil {
-		c.JSON(idErr.Status, idErr)
+		c.JSON(idErr.Status(), idErr)
 		return
 	}
 
 	var user users.User
 	if err := c.ShouldBindJSON(&user); err != nil {
-		restErr := errors.NewBadRequestError("Invalid JSON body")
-		c.JSON(restErr.Status, restErr)
+		restErr := rest_errors.NewBadRequestError("invalid json body")
+		c.JSON(restErr.Status(), restErr)
 		return
 	}
+
 	user.Id = userId
 
 	isPartial := c.Request.Method == http.MethodPatch
-	result, err := services.UserService.UpdateUser(isPartial, user)
+
+	result, err := services.UsersService.UpdateUser(isPartial, user)
 	if err != nil {
-		c.JSON(err.Status, err)
+		c.JSON(err.Status(), err)
 		return
 	}
-
-	c.JSON(http.StatusOK, result.Marshall(c.GetHeader("x-public") == "true"))
+	c.JSON(http.StatusOK, result.Marshall(c.GetHeader("X-Public") == "true"))
 }
 
-// Delete User
 func Delete(c *gin.Context) {
 	userId, idErr := getUserId(c.Param("user_id"))
 	if idErr != nil {
-		c.JSON(idErr.Status, idErr)
+		c.JSON(idErr.Status(), idErr)
 		return
 	}
 
-	if _, deleteErr := services.UserService.DeleteUser(userId); deleteErr != nil {
-		c.JSON(deleteErr.Status, deleteErr)
+	if err := services.UsersService.DeleteUser(userId); err != nil {
+		c.JSON(err.Status(), err)
 		return
 	}
 	c.JSON(http.StatusOK, map[string]string{"status": "deleted"})
 }
 
-// Get User
-func Get(c *gin.Context) {
-	userId, idErr := getUserId(c.Param("user_id"))
-	if idErr != nil {
-		c.JSON(idErr.Status, idErr)
+func Search(c *gin.Context) {
+	status := c.Query("status")
+
+	users, err := services.UsersService.SearchUser(status)
+	if err != nil {
+		c.JSON(err.Status(), err)
 		return
 	}
+	c.JSON(http.StatusOK, users.Marshall(c.GetHeader("X-Public") == "true"))
+}
 
-	user, getErr := services.UserService.GetUser(userId)
-	if getErr != nil {
-		c.JSON(getErr.Status, getErr)
+func Login(c *gin.Context) {
+	var request users.LoginRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		restErr := rest_errors.NewBadRequestError("invalid json body")
+		c.JSON(restErr.Status(), restErr)
+		return
+	}
+	user, err := services.UsersService.LoginUser(request)
+	if err != nil {
+		c.JSON(err.Status(), err)
 		return
 	}
 	c.JSON(http.StatusOK, user.Marshall(c.GetHeader("X-Public") == "true"))
 }
-
-func Search(c *gin.Context) {
-	status := c.Query("status")
-
-	users, statusErr := services.UserService.SearchUser(status)
-	if statusErr != nil {
-		c.JSON(statusErr.Status, statusErr)
-		return
-	}
-
-	c.JSON(http.StatusOK, users.Marshall(c.GetHeader("X-Public") == "true"))
-}
-
-// func ListUser(c *gin.Context) {
-// 	c.String(http.StatusOK, "Implement List User")
-// }
-
-// func SearchUser(c *gin.Context) {
-// 	c.String(http.StatusOK, "Implement Search User")
-// }

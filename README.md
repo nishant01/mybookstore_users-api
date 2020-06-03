@@ -1,2 +1,2 @@
-# mybookstore_users-api
-Bookstore User API
+# bookstore_users-api
+Users API

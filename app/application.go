@@ -2,7 +2,7 @@ package app
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/nishant01/mybookstore_users-api/logger"
+	"github.com/nishant01/mybookstore_utils-go/logger"
 )
 
 var (
@@ -11,6 +11,7 @@ var (
 
 func StartApplication() {
 	mapUrls()
+
 	logger.Info("about to start the application...")
-	router.Run(":8080")
+	router.Run(":8082")
 }
